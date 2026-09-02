@@ -19,6 +19,22 @@ Project Idea: A scheduler that tells you how much time you have left for events 
 Language: C++
 
  
+## actual calendar class: 
+ using a dictionary data structure, work way up from one week to one month, maybe a year
+
+ every key is a day and every value is an event class
+
+## event class 
+ description of events within dictionary 
+
+## alarm/reminder class 
+ 
+
+
+
+
+
+
 
  
 
