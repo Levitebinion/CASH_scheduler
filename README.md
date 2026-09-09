@@ -28,6 +28,15 @@ Language: C++
  description of events within dictionary 
 
 ## alarm/reminder class 
+
+
+phase 1: basic  (dynamic) calender
+ day of the week to day 
+ leap years 
+
+phase 2: add special features
+
+phase 3: developing ui
  
 
 
