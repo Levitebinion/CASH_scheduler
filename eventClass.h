@@ -12,7 +12,7 @@ private:
 	std::chrono::minutes leaveOffset; // when is it time to leave ex: 10 minutes before event time
 
 public:
-	// constructor?
+	// constructor
 	CalendarEvent(
 		int eventID,
 		const std::string& description,
@@ -76,6 +76,9 @@ public:
 	}
 	
 	// functions to determine when to get ready and when to leave
+    std::chrono::system_clock::time_point alarmTime(std::chrono::system_clock::time_point eventTime, std::chrono::minutes offset){
+        return (eventTime - offset);
+    }
 	
 };
 
