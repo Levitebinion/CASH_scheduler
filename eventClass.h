@@ -10,6 +10,8 @@ private:
 	std::chrono::system_clock::time_point eventTime; // what time is the event
 	std::chrono::minutes getReadyOffset; //when is it time to get ready ex: 30 minutes before event time
 	std::chrono::minutes leaveOffset; // when is it time to leave ex: 10 minutes before event time
+    std::chrono::system_clock::time_point getReadyTime = alarmTime(eventTime, getReadyOffset);
+    std::chrono::system_clock::time_point leaveTime = alarmTime(eventTime, leaveOffset);
 
 public:
 	// constructor
@@ -74,8 +76,18 @@ public:
 	std::chrono::minutes getLeaveOffset() const {
 		return leaveOffset;
 	}
+    
+    //GET THE READY TIME
+	std::chrono::system_clock::time_point giveReadyTime() const {
+		return getReadyTime;
+	}
+
+    //GET THE LEAVE TIME
+	std::chrono::system_clock::time_point giveLeaveTime() const {
+		return leaveTime;
+	}
 	
-	// functions to determine when to get ready and when to leave
+	// function to determine when to get ready and when to leave
     std::chrono::system_clock::time_point alarmTime(std::chrono::system_clock::time_point eventTime, std::chrono::minutes offset){
         return (eventTime - offset);
     }
