@@ -1,0 +1,34 @@
+/* Application window background */
+QWidget {
+    background-color: #121212;
+    color: #ffffff;
+    font-family: Segoe UI, sans-serif;
+}
+
+/* Day grid buttons */
+QPushButton {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #2d2d2d;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Hover effect when mouse passes over a day */
+QPushButton:hover {
+    background-color: #2a2d32;
+    border: 1px solid #007acc;
+}
+
+/* Active/Clicked state */
+QPushButton:pressed {
+    background-color: #007acc;
+    color: #ffffff;
+}
+
+/* Month name and weekday labels (Mon, Tue, etc.) */
+QLabel {
+    color: #cccccc;
+    font-weight: bold;
+    font-size: 14px;
+}
