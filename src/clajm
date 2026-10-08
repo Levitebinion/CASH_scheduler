@@ -1,0 +1,571 @@
+#include <iostream>
+#include <chrono>
+#include <format>
+#include <map>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <limits>
+#include <algorithm>
+
+using namespace std;
+using namespace std::chrono;
+
+// Each event now contains a time and description
+struct Event {
+    int hour;
+    int minute;
+    string description;
+};
+
+// Date -> list of events
+using CalendarSchedule = map<year_month_day, vector<Event>>;
+
+
+// ============================================================
+// GET CURRENT DATE
+// ============================================================
+
+year_month_day get_current_date() {
+    auto now = system_clock::now();
+
+    // Convert current time to today's date
+    sys_days today = floor<days>(now);
+
+    return year_month_day{today};
+}
+
+
+// ============================================================
+// GET CURRENT TIME
+// ============================================================
+
+void print_current_time() {
+    auto now = system_clock::now();
+
+    time_t current_time = system_clock::to_time_t(now);
+    tm* local_time = std::localtime(&current_time);
+
+    int hour = local_time->tm_hour;
+    int minute = local_time->tm_min;
+
+    string am_pm = "AM";
+
+    if (hour >= 12)
+        am_pm = "PM";
+
+    int display_hour = hour % 12;
+
+    if (display_hour == 0)
+        display_hour = 12;
+
+    cout << "Current Time: "
+         << display_hour << ":"
+         << format("{:02}", minute)
+         << " " << am_pm << "\n";
+}
+
+
+// ============================================================
+// PRINT CALENDAR
+// ============================================================
+
+void print_calendar_with_events(
+    year y,
+    month m,
+    const CalendarSchedule& schedule
+) {
+
+    year_month_day first_day_ymd{y, m, day{1}};
+
+    weekday start_weekday{
+        sys_days{first_day_ymd}
+    };
+
+    year_month_day_last last_day_ymd{
+        y / m / last
+    };
+
+    unsigned total_days =
+        static_cast<unsigned>(last_day_ymd.day());
+
+    cout << format(
+        "\n{:^21}\n",
+        format("{} {}", m, y)
+    );
+
+    cout << "Su Mo Tu We Th Fr Sa\n";
+
+    unsigned spaces = start_weekday.c_encoding();
+
+    for (unsigned i = 0; i < spaces; ++i) {
+        cout << "   ";
+    }
+
+    vector<year_month_day> events_this_month;
+
+    for (unsigned d = 1; d <= total_days; ++d) {
+
+        year_month_day current_date{
+            y,
+            m,
+            day{d}
+        };
+
+        bool has_event =
+            schedule.contains(current_date);
+
+        if (has_event) {
+
+            cout << format("{:2}*", d);
+
+            events_this_month.push_back(
+                current_date
+            );
+        }
+        else {
+
+            cout << format("{:2} ", d);
+        }
+
+        if ((spaces + d) % 7 == 0) {
+            cout << "\n";
+        }
+    }
+
+    cout << "\n\n";
+
+    // Print events below calendar
+    if (!events_this_month.empty()) {
+
+        cout << "------- Agenda -------\n";
+
+        for (const auto& date :
+             events_this_month) {
+
+            for (const auto& event :
+                 schedule.at(date)) {
+
+                int display_hour =
+                    event.hour % 12;
+
+                if (display_hour == 0)
+                    display_hour = 12;
+
+                string am_pm =
+                    event.hour >= 12
+                    ? "PM"
+                    : "AM";
+
+                cout << format(
+                    "[Day {:02}] {}:{:02} {} - {}\n",
+                    static_cast<unsigned>(
+                        date.day()
+                    ),
+                    display_hour,
+                    event.minute,
+                    am_pm,
+                    event.description
+                );
+            }
+        }
+    }
+}
+
+
+// ============================================================
+// SCHEDULE NEW EVENT
+// ============================================================
+
+void schedule_event(
+    CalendarSchedule& schedule
+) {
+
+    int input_year;
+    unsigned input_month;
+    unsigned input_day;
+
+    int hour;
+    int minute;
+
+    string description;
+
+    cout << "\n====== Schedule Event ======\n";
+
+    cout << "Enter year: ";
+    cin >> input_year;
+
+    cout << "Enter month (1-12): ";
+    cin >> input_month;
+
+    cout << "Enter day: ";
+    cin >> input_day;
+
+    cout << "Enter hour (0-23): ";
+    cin >> hour;
+
+    cout << "Enter minute (0-59): ";
+    cin >> minute;
+
+
+    // Check time
+    if (hour < 0 || hour > 23 ||
+        minute < 0 || minute > 59) {
+
+        cout << "Invalid time.\n";
+        return;
+    }
+
+
+    year_month_day event_date{
+        year{input_year},
+        month{input_month},
+        day{input_day}
+    };
+
+
+    // Check if date actually exists
+    if (!event_date.ok()) {
+
+        cout << "Invalid date.\n";
+        return;
+    }
+
+
+    cin.ignore(
+        numeric_limits<streamsize>::max(),
+        '\n'
+    );
+
+    cout << "Enter event description: ";
+
+    getline(cin, description);
+
+
+    Event new_event{
+        hour,
+        minute,
+        description
+    };
+
+
+    schedule[event_date].push_back(
+        new_event
+    );
+
+
+    cout << "\nEvent scheduled successfully!\n";
+}
+
+
+// ============================================================
+// SHOW TODAY'S EVENTS
+// ============================================================
+
+void show_todays_events(
+    const CalendarSchedule& schedule
+) {
+
+    year_month_day today =
+        get_current_date();
+
+    cout << "\n====== Today's Events ======\n";
+
+    cout << format(
+        "Date: {}/{}/{}\n\n",
+        static_cast<unsigned>(
+            today.month()
+        ),
+        static_cast<unsigned>(
+            today.day()
+        ),
+        static_cast<int>(
+            today.year()
+        )
+    );
+
+
+    if (!schedule.contains(today)) {
+
+        cout << "No events scheduled today.\n";
+
+        return;
+    }
+
+
+    for (const auto& event :
+         schedule.at(today)) {
+
+        int display_hour =
+            event.hour % 12;
+
+        if (display_hour == 0)
+            display_hour = 12;
+
+        string am_pm =
+            event.hour >= 12
+            ? "PM"
+            : "AM";
+
+
+        cout << format(
+            "{}:{:02} {} - {}\n",
+            display_hour,
+            event.minute,
+            am_pm,
+            event.description
+        );
+    }
+}
+
+
+// ============================================================
+// SAVE EVENTS
+// ============================================================
+
+void save_events(
+    const CalendarSchedule& schedule
+) {
+
+    ofstream file("events.txt");
+
+
+    for (const auto& [date, events] :
+         schedule) {
+
+        for (const auto& event :
+             events) {
+
+            file
+                << static_cast<int>(
+                    date.year()
+                )
+                << " "
+
+                << static_cast<unsigned>(
+                    date.month()
+                )
+                << " "
+
+                << static_cast<unsigned>(
+                    date.day()
+                )
+                << " "
+
+                << event.hour
+                << " "
+
+                << event.minute
+                << " "
+
+                << event.description
+                << "\n";
+        }
+    }
+}
+
+
+// ============================================================
+// LOAD EVENTS
+// ============================================================
+
+void load_events(
+    CalendarSchedule& schedule
+) {
+
+    ifstream file("events.txt");
+
+    if (!file) {
+        return;
+    }
+
+
+    int y;
+    unsigned m;
+    unsigned d;
+
+    int hour;
+    int minute;
+
+    string description;
+
+
+    while (
+        file >> y
+             >> m
+             >> d
+             >> hour
+             >> minute
+    ) {
+
+        file.ignore();
+
+        getline(
+            file,
+            description
+        );
+
+
+        year_month_day date{
+            year{y},
+            month{m},
+            day{d}
+        };
+
+
+        Event event{
+            hour,
+            minute,
+            description
+        };
+
+
+        schedule[date].push_back(
+            event
+        );
+    }
+}
+
+
+// ============================================================
+// MAIN
+// ============================================================
+
+int main() {
+
+    CalendarSchedule schedule;
+
+
+    // Load old events when program starts
+    load_events(schedule);
+
+
+    int choice;
+
+
+    do {
+
+        year_month_day today =
+            get_current_date();
+
+
+        cout << "\n";
+        cout << "============================\n";
+        cout << "         MY CALENDAR\n";
+        cout << "============================\n";
+
+
+        cout << format(
+            "Today's Date: {}/{}/{}\n",
+            static_cast<unsigned>(
+                today.month()
+            ),
+            static_cast<unsigned>(
+                today.day()
+            ),
+            static_cast<int>(
+                today.year()
+            )
+        );
+
+
+        print_current_time();
+
+
+        cout << "\n";
+
+        cout << "1. View Current Month\n";
+        cout << "2. Schedule Event\n";
+        cout << "3. Today's Events\n";
+        cout << "4. View Different Month\n";
+        cout << "5. Exit\n";
+
+
+        cout << "\nEnter choice: ";
+
+        cin >> choice;
+
+
+        switch (choice) {
+
+        case 1:
+
+            print_calendar_with_events(
+                today.year(),
+                today.month(),
+                schedule
+            );
+
+            break;
+
+
+        case 2:
+
+            schedule_event(schedule);
+
+            // Immediately save after
+            // scheduling something
+            save_events(schedule);
+
+            break;
+
+
+        case 3:
+
+            show_todays_events(
+                schedule
+            );
+
+            break;
+
+
+        case 4: {
+
+            int y;
+            unsigned m;
+
+            cout << "Enter year: ";
+            cin >> y;
+
+            cout << "Enter month (1-12): ";
+            cin >> m;
+
+
+            if (m < 1 || m > 12) {
+
+                cout << "Invalid month.\n";
+
+                break;
+            }
+
+
+            print_calendar_with_events(
+                year{y},
+                month{m},
+                schedule
+            );
+
+            break;
+        }
+
+
+        case 5:
+
+            save_events(schedule);
+
+            cout << "Calendar saved. Goodbye!\n";
+
+            break;
+
+
+        default:
+
+            cout << "Invalid choice.\n";
+        }
+
+
+    } while (choice != 5);
+
+
+    return 0;
+}
