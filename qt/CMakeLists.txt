@@ -10,6 +10,11 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
-add_executable(QtVSCodeApp main.cpp)
+add_executable(QtVSCodeApp 
+    main.cpp
+    ../src/calendar.h
+    ../src/calender.cpp
+    ../src/eventClass.h
 
 target_link_libraries(QtVSCodeApp PRIVATE Qt6::Widgets)
+
