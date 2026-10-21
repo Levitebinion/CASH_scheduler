@@ -17,4 +17,5 @@ add_executable(QtVSCodeApp
     ../src/eventClass.h
 
 target_link_libraries(QtVSCodeApp PRIVATE Qt6::Widgets)
+target_include_directories(QtVSCodeApp PRIVATE ../src)
 
