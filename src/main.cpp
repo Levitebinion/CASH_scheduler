@@ -2,7 +2,7 @@
 #include <chrono>
 #include <string>
 
-#include "Calendar.h"
+#include "calendar.h"
 #include "eventClass.h"
 
 using namespace std;

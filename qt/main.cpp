@@ -12,12 +12,19 @@
 #include <QFile>
 #include <QTextStream>
 #include <QDebug>
+#include <QDialog>
+#include <QLineEdit>
+#include <QFormLayout>
+#include <QDialogButtonBox>
+#include "calendar.h"
+#include <chrono>
 
 // Global or tracked state for current view
 QDate currentDisplayDate = QDate::currentDate();
 
 // Clear existing buttons in layout and redraw grid for current month/year
-void updateCalendarGrid(QGridLayout *grid, QLabel *monthLabel, QLabel *selectedLabel) {
+void updateCalendarGrid(QGridLayout *grid, QLabel *monthLabel, QLabel *selectedLabel,
+                        QWidget *window, Calendar *calendar) {
     // 1. Update Month Header Text
     monthLabel->setText(currentDisplayDate.toString("MMMM yyyy"));
 
@@ -48,9 +55,73 @@ void updateCalendarGrid(QGridLayout *grid, QLabel *monthLabel, QLabel *selectedL
         dayBtn->setMinimumSize(40, 40);
 
         int clickedDay = dayNumber;
-        QObject::connect(dayBtn, &QPushButton::clicked, [clickedDay, selectedLabel]() {
-            QDate clickedDate(currentDisplayDate.year(), currentDisplayDate.month(), clickedDay);
-            selectedLabel->setText("Selected Date: " + clickedDate.toString("yyyy-MM-dd"));
+        QObject::connect(dayBtn, &QPushButton::clicked, [clickedDay, selectedLabel, window, calendar]() {
+        QDate clickedDate(currentDisplayDate.year(), currentDisplayDate.month(), clickedDay);
+        selectedLabel->setText("Selected Date: " + clickedDate.toString("yyyy-MM-dd"));
+
+        // 1. Open Dialog to get event details from the user
+        QDialog dialog(window);
+        dialog.setWindowTitle("Add Event");
+        dialog.resize(300, 200);
+
+        QVBoxLayout *dialogLayout = new QVBoxLayout(&dialog);
+        
+        QLabel *dateHeader = new QLabel("Add event for: " + clickedDate.toString("yyyy-MM-dd"));
+        
+        // Input fields for your event details
+        QLineEdit *idInput = new QLineEdit(&dialog);
+        idInput->setPlaceholderText("Enter Event ID (integer)...");
+        
+        QLineEdit *titleInput = new QLineEdit(&dialog);
+        titleInput->setPlaceholderText("Enter Event Title...");
+
+        QDialogButtonBox *buttonBox = new QDialogButtonBox(
+            QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dialog);
+
+        dialogLayout->addWidget(dateHeader);
+        dialogLayout->addWidget(idInput);
+        dialogLayout->addWidget(titleInput);
+        dialogLayout->addWidget(buttonBox);
+
+        QObject::connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        QObject::connect(buttonBox, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+        // 2. When user clicks Save/Accept, construct the event and call your backend function
+        if (dialog.exec() == QDialog::Accepted) {
+            bool ok;
+            int eventId = idInput->text().toInt(&ok);
+            QString eventTitle = titleInput->text();
+
+            if (ok) {
+                const auto eventDate = std::chrono::year_month_day{
+                    std::chrono::year{clickedDate.year()},
+                    std::chrono::month{static_cast<unsigned>(clickedDate.month())},
+                    std::chrono::day{static_cast<unsigned>(clickedDate.day())}
+                };
+                const auto eventTime = std::chrono::system_clock::time_point{
+                    std::chrono::duration_cast<std::chrono::system_clock::duration>(
+                        std::chrono::sys_days{eventDate}.time_since_epoch())
+                };
+                CalendarEvent newEvent(
+                    eventId,
+                    eventTitle.toStdString(),
+                    "",
+                    eventTime,
+                    std::chrono::minutes{0},
+                    std::chrono::minutes{0});
+
+                // ---> HERE IS WHERE YOU USE YOUR FUNCTION <---
+                bool success = calendar->addEvent(newEvent);
+
+                if (success) {
+                    qDebug() << "Event successfully added to backend!";
+                } else {
+                    qDebug() << "Failed to add event: Duplicate ID detected.";
+                }
+            } else {
+                qDebug() << "Invalid Event ID entered!";
+            }
+        }
         });
 
         grid->addWidget(dayBtn, row, col);
@@ -81,6 +152,7 @@ QString stylePath = QCoreApplication::applicationDirPath() + "/../styles.qss";
     }
 
     QWidget window;
+    Calendar calendar;
     window.setWindowTitle("Custom Grid Calendar");
     window.resize(600, 500);
 
@@ -120,16 +192,16 @@ QString stylePath = QCoreApplication::applicationDirPath() + "/../styles.qss";
     // --- Button Click Signal Connections ---
     QObject::connect(nextBtn, &QPushButton::clicked, [&]() {
         currentDisplayDate = currentDisplayDate.addMonths(1);
-        updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel);
+        updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel, &window, &calendar);
     });
 
     QObject::connect(prevBtn, &QPushButton::clicked, [&]() {
         currentDisplayDate = currentDisplayDate.addMonths(-1);
-        updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel);
+        updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel, &window, &calendar);
     });
 
     // Initial grid population
-    updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel);
+    updateCalendarGrid(calendarGrid, monthLabel, selectedDateLabel, &window, &calendar);
 
     window.show();
     return app.exec();
