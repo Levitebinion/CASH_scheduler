@@ -20,13 +20,7 @@
 #include "calendar.h"
 #include <chrono>
 
-// Global state for current calendar view
 QDate currentDisplayDate = QDate::currentDate();
-
-
-// ============================================================
-// UPDATE CALENDAR GRID
-// ============================================================
 
 void updateCalendarGrid(
     QGridLayout *grid,
@@ -35,25 +29,19 @@ void updateCalendarGrid(
     QWidget *window,
     Calendar *calendar
 ) {
-
-    // Update month header
     monthLabel->setText(
         currentDisplayDate.toString("MMMM yyyy")
     );
 
-    // Clear old calendar buttons
     QLayoutItem *child;
 
     while ((child = grid->takeAt(0)) != nullptr) {
-
         if (child->widget()) {
             delete child->widget();
         }
-
         delete child;
     }
 
-    // Find first day of month
     QDate firstOfMonth(
         currentDisplayDate.year(),
         currentDisplayDate.month(),
@@ -61,15 +49,12 @@ void updateCalendarGrid(
     );
 
     int startCol = firstOfMonth.dayOfWeek() - 1;
-
     int daysInMonth = currentDisplayDate.daysInMonth();
 
     int dayNumber = 1;
     int row = 0;
 
-    // Create calendar buttons
     for (int col = startCol; dayNumber <= daysInMonth; ++col) {
-
         if (col == 7) {
             col = 0;
             row++;
@@ -81,10 +66,6 @@ void updateCalendarGrid(
         dayBtn->setMinimumSize(40, 40);
 
         int clickedDay = dayNumber;
-
-        // ====================================================
-        // ADD EVENT FUNCTION
-        // ====================================================
 
         QObject::connect(
             dayBtn,
@@ -102,7 +83,6 @@ void updateCalendarGrid(
                     clickedDate.toString("yyyy-MM-dd")
                 );
 
-                // Create Add Event dialog
                 QDialog dialog(window);
 
                 dialog.setWindowTitle("Add Event");
@@ -116,7 +96,6 @@ void updateCalendarGrid(
                     clickedDate.toString("yyyy-MM-dd")
                 );
 
-                // Event ID input
                 QLineEdit *idInput =
                     new QLineEdit(&dialog);
 
@@ -124,7 +103,6 @@ void updateCalendarGrid(
                     "Enter Event ID (integer)..."
                 );
 
-                // Event title input
                 QLineEdit *titleInput =
                     new QLineEdit(&dialog);
 
@@ -132,7 +110,6 @@ void updateCalendarGrid(
                     "Enter Event Title..."
                 );
 
-                // Save and Cancel buttons
                 QDialogButtonBox *buttonBox =
                     new QDialogButtonBox(
                         QDialogButtonBox::Save |
@@ -159,7 +136,6 @@ void updateCalendarGrid(
                     &QDialog::reject
                 );
 
-                // Save event to backend
                 if (dialog.exec() == QDialog::Accepted) {
 
                     bool ok;
@@ -171,41 +147,33 @@ void updateCalendarGrid(
                         titleInput->text();
 
                     if (!ok) {
-
                         QMessageBox::warning(
                             window,
                             "Invalid Event ID",
                             "Please enter a valid integer Event ID."
                         );
-
                         return;
                     }
 
                     if (eventTitle.trimmed().isEmpty()) {
-
                         QMessageBox::warning(
                             window,
                             "Invalid Event Title",
                             "Please enter an event title."
                         );
-
                         return;
                     }
 
-                    // Convert selected date
                     const auto eventDate =
                         std::chrono::year_month_day{
-
                             std::chrono::year{
                                 clickedDate.year()
                             },
-
                             std::chrono::month{
                                 static_cast<unsigned>(
                                     clickedDate.month()
                                 )
                             },
-
                             std::chrono::day{
                                 static_cast<unsigned>(
                                     clickedDate.day()
@@ -215,7 +183,6 @@ void updateCalendarGrid(
 
                     const auto eventTime =
                         std::chrono::system_clock::time_point{
-
                             std::chrono::duration_cast<
                                 std::chrono::system_clock::duration
                             >(
@@ -225,29 +192,19 @@ void updateCalendarGrid(
                             )
                         };
 
-                    // Create CalendarEvent object
                     CalendarEvent newEvent(
-
                         eventId,
-
                         eventTitle.toStdString(),
-
                         "",
-
                         eventTime,
-
                         std::chrono::minutes{0},
-
                         std::chrono::minutes{0}
-
                     );
 
-                    // Call backend addEvent()
                     bool success =
                         calendar->addEvent(newEvent);
 
                     if (success) {
-
                         QMessageBox::information(
                             window,
                             "Event Added",
@@ -256,38 +213,25 @@ void updateCalendarGrid(
 
                         qDebug()
                             << "Event successfully added to backend!";
-
                     } else {
-
                         QMessageBox::warning(
                             window,
                             "Duplicate Event ID",
                             "An event with that ID already exists."
                         );
-
                     }
                 }
             }
         );
 
         grid->addWidget(dayBtn, row, col);
-
         dayNumber++;
     }
 }
 
-
-// ============================================================
-// MAIN APPLICATION
-// ============================================================
-
 int main(int argc, char *argv[]) {
 
     QApplication app(argc, argv);
-
-    // ========================================================
-    // LOAD STYLESHEET
-    // ========================================================
 
     QString stylePath =
         QCoreApplication::applicationDirPath()
@@ -299,48 +243,31 @@ int main(int argc, char *argv[]) {
         file.open(QFile::ReadOnly | QFile::Text);
 
     if (!styleOpened) {
-
         file.setFileName("styles.qss");
 
         styleOpened =
             file.open(QFile::ReadOnly | QFile::Text);
 
         if (!styleOpened) {
-
             qWarning()
                 << "Could not open styles.qss!";
         }
     }
 
     if (file.isOpen()) {
-
         QTextStream stream(&file);
-
         app.setStyleSheet(stream.readAll());
-
         file.close();
     }
 
-
-    // ========================================================
-    // CREATE MAIN WINDOW
-    // ========================================================
-
     QWidget window;
-
     Calendar calendar;
 
     window.setWindowTitle("CASH Scheduler");
-
     window.resize(600, 500);
 
     QVBoxLayout *mainLayout =
         new QVBoxLayout(&window);
-
-
-    // ========================================================
-    // MONTH NAVIGATION
-    // ========================================================
 
     QHBoxLayout *headerLayout =
         new QHBoxLayout();
@@ -355,27 +282,17 @@ int main(int argc, char *argv[]) {
         new QPushButton(">");
 
     headerLayout->addWidget(prevBtn);
-
     headerLayout->addStretch();
-
     headerLayout->addWidget(monthLabel);
-
     headerLayout->addStretch();
-
     headerLayout->addWidget(nextBtn);
 
     mainLayout->addLayout(headerLayout);
-
-
-    // ========================================================
-    // WEEKDAY HEADERS
-    // ========================================================
 
     QGridLayout *daysHeaderLayout =
         new QGridLayout();
 
     QStringList days = {
-
         "Mon",
         "Tue",
         "Wed",
@@ -383,17 +300,13 @@ int main(int argc, char *argv[]) {
         "Fri",
         "Sat",
         "Sun"
-
     };
 
     for (int col = 0; col < 7; ++col) {
-
         QLabel *dayLabel =
             new QLabel(days[col]);
 
-        dayLabel->setAlignment(
-            Qt::AlignCenter
-        );
+        dayLabel->setAlignment(Qt::AlignCenter);
 
         daysHeaderLayout->addWidget(
             dayLabel,
@@ -404,20 +317,10 @@ int main(int argc, char *argv[]) {
 
     mainLayout->addLayout(daysHeaderLayout);
 
-
-    // ========================================================
-    // CALENDAR GRID
-    // ========================================================
-
     QGridLayout *calendarGrid =
         new QGridLayout();
 
     mainLayout->addLayout(calendarGrid);
-
-
-    // ========================================================
-    // SELECTED DATE LABEL
-    // ========================================================
 
     QLabel *selectedDateLabel =
         new QLabel("Selected Date: None");
@@ -428,11 +331,6 @@ int main(int argc, char *argv[]) {
 
     mainLayout->addWidget(selectedDateLabel);
 
-
-    // ========================================================
-    // NEW FEATURE: SEARCH EVENT BUTTON
-    // ========================================================
-
     QPushButton *searchBtn =
         new QPushButton("Search Event");
 
@@ -440,31 +338,22 @@ int main(int argc, char *argv[]) {
 
     mainLayout->addWidget(searchBtn);
 
-
-    // ========================================================
-    // NEW FEATURE: SEARCH EVENT FUNCTION
-    // ========================================================
-
     QObject::connect(
         searchBtn,
         &QPushButton::clicked,
         [&]() {
 
-            // Create Search Event dialog
             QDialog dialog(&window);
 
             dialog.setWindowTitle("Search Event");
-
             dialog.resize(350, 150);
 
             QVBoxLayout *dialogLayout =
                 new QVBoxLayout(&dialog);
 
-            // Event ID label
             QLabel *idLabel =
                 new QLabel("Enter Event ID:");
 
-            // Event ID input
             QLineEdit *idInput =
                 new QLineEdit(&dialog);
 
@@ -472,7 +361,6 @@ int main(int argc, char *argv[]) {
                 "Enter Event ID..."
             );
 
-            // Search and Cancel buttons
             QDialogButtonBox *buttonBox =
                 new QDialogButtonBox(
                     QDialogButtonBox::Ok |
@@ -481,12 +369,9 @@ int main(int argc, char *argv[]) {
                 );
 
             dialogLayout->addWidget(idLabel);
-
             dialogLayout->addWidget(idInput);
-
             dialogLayout->addWidget(buttonBox);
 
-            // Connect buttons
             QObject::connect(
                 buttonBox,
                 &QDialogButtonBox::accepted,
@@ -501,10 +386,6 @@ int main(int argc, char *argv[]) {
                 &QDialog::reject
             );
 
-            // =================================================
-            // SEARCH BACKEND WHEN USER CLICKS OK
-            // =================================================
-
             if (dialog.exec() == QDialog::Accepted) {
 
                 bool ok;
@@ -512,71 +393,51 @@ int main(int argc, char *argv[]) {
                 int eventID =
                     idInput->text().toInt(&ok);
 
-                // Validate input
                 if (!ok) {
-
                     QMessageBox::warning(
                         &window,
                         "Invalid Input",
                         "Please enter a valid Event ID."
                     );
-
                     return;
                 }
-
-                // =============================================
-                // CALL EXISTING BACKEND getEvent()
-                // =============================================
 
                 CalendarEvent *event =
                     calendar.getEvent(eventID);
 
-                // Event not found
                 if (event == nullptr) {
-
                     QMessageBox::warning(
                         &window,
                         "Event Not Found",
                         "No event exists with that ID."
                     );
-
                     return;
                 }
 
-                // =============================================
-                // DISPLAY EVENT INFORMATION
-                // =============================================
-
                 QString eventInfo =
-
                     "Event ID: " +
                     QString::number(
                         event->getEventID()
                     ) +
-
                     "\n\nTitle: " +
                     QString::fromStdString(
                         event->getDescription()
                     ) +
-
                     "\n\nLocation: " +
                     QString::fromStdString(
                         event->getLocation()
                     ) +
-
                     "\n\nGet Ready: " +
                     QString::number(
                         event->getReadyOff().count()
                     ) +
                     " minutes before event" +
-
                     "\n\nLeave: " +
                     QString::number(
                         event->getLeaveOffset().count()
                     ) +
                     " minutes before event";
 
-                // Show event information
                 QMessageBox::information(
                     &window,
                     "Event Found",
@@ -589,11 +450,6 @@ int main(int argc, char *argv[]) {
             }
         }
     );
-
-
-    // ========================================================
-    // NEXT MONTH BUTTON
-    // ========================================================
 
     QObject::connect(
         nextBtn,
@@ -613,11 +469,6 @@ int main(int argc, char *argv[]) {
         }
     );
 
-
-    // ========================================================
-    // PREVIOUS MONTH BUTTON
-    // ========================================================
-
     QObject::connect(
         prevBtn,
         &QPushButton::clicked,
@@ -636,11 +487,6 @@ int main(int argc, char *argv[]) {
         }
     );
 
-
-    // ========================================================
-    // INITIAL CALENDAR DISPLAY
-    // ========================================================
-
     updateCalendarGrid(
         calendarGrid,
         monthLabel,
@@ -648,11 +494,6 @@ int main(int argc, char *argv[]) {
         &window,
         &calendar
     );
-
-
-    // ========================================================
-    // SHOW APPLICATION
-    // ========================================================
 
     window.show();
 
