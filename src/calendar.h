@@ -9,21 +9,22 @@ class Calendar {
 private:
 
     // eventID -> CalendarEvent
-    std::map<int, CalendarEvent> events;
+    std::map<std::string, CalendarEvent> events;
 
+    //private because only adding events should be using it, creates the event's id
+     std::string generateEventID(std::chrono::system_clock::time_point eventTime) const;
 public:
-
     // Add an event
     bool addEvent(const CalendarEvent& event);
 
     // Remove an event
-    bool removeEvent(int eventID);
+    bool removeEvent(std::string eventID);
 
     // Find an event
-    CalendarEvent* getEvent(int eventID);
+    CalendarEvent* getEvent(std::string eventID);
 
     // Check if event exists
-    bool eventExists(int eventID) const;
+    bool eventExists(std::string eventID) const;
 
     // Print all events on console terminal
     void printEvents() const;

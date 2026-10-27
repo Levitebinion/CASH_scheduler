@@ -9,7 +9,7 @@ void printDetails(CalendarEvent test);
 
 int main()
 {
-    CalendarEvent event(1, "Awesome Party", "My Cool Friend's House", std::chrono::system_clock::now() + std::chrono::hours(48), std::chrono::minutes(30), std::chrono::minutes(20));
+    CalendarEvent event("1", "Awesome Party", "My Cool Friend's House", std::chrono::system_clock::now() + std::chrono::hours(48), std::chrono::minutes(30), std::chrono::minutes(20));
     printDetails(event);
 
     event.setLocation("New place I've never gone before");

@@ -4,7 +4,7 @@
 
 class CalendarEvent {
 private:
-	int eventID;
+	std::string eventID; //starts with yyyymmdd and then the number of events created
 	std::string description; //what is the event
 	std::string location; //where does it take place
 	std::chrono::system_clock::time_point eventTime; // what time is the event
@@ -16,7 +16,7 @@ private:
 public:
 	// constructor
 	CalendarEvent(
-		int eventID,
+		const std::string& eventID,
 		const std::string& description,
 		const std::string& location,
 		std::chrono::system_clock::time_point eventTime,
@@ -35,7 +35,7 @@ public:
 	}
 
 	// getters/setters
-	int getEventID() const {
+	std::string getEventID() const {
 		return eventID;
 	}
 

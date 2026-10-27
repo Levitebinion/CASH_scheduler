@@ -4,14 +4,64 @@
 #include <format>
 #include <chrono>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 using namespace std::chrono;
 
 
+string Calendar::generateEventID(system_clock::time_point eventTime) const {
+    const auto timeT = system_clock::to_time_t(eventTime); //convert timepoint to time_t to get year,month,date out
+    tm localTime{}; //hold converted date
+
+    //this checks what time conversion to use, windows or linux/mac
+    //read some stuff that says it should be here so it is
+    #if defined(_MSC_VER)
+        localtime_s(&localTime, &timeT);
+    #else
+        localtime_r(&timeT, &localTime);
+    #endif
+
+    //makes date portion of ID, YYYYMMDD
+    const string date = format(
+        "{:04}{:02}{:02}",
+        localTime.tm_year + 1900,
+        localTime.tm_mon + 1,
+        localTime.tm_mday
+    );
+
+    // make second part of the id
+     int largestIDnum = 1; //in case no other events that day, start at 1
+
+    //search events map for events with IDs matching the date
+    for (const auto& [id, event] : events) {
+        if (id.size() <= 8 || !id.starts_with(date)) { //skip ids that don't match date or aren't long enough to be valid
+            continue;
+        }
+        //get everything after the date portion
+        const string suffix = id.substr(8);
+
+        // Ensure the suffix contains only digits.
+        if (!ranges::all_of(suffix, [](unsigned char c) {
+            return c >= '0' && c <= '9';
+        })) {
+            continue;
+        }
+        //convert the suffix portion to an integer to do some math
+        const int number = std::stoi(suffix);
+        //track the largest suffix found plus one so that we avoid reusing id numbers
+        largestIDnum = max(largestIDnum, number + 1);
+    }
+
+    //Combine date and suffix number into full id
+    //i think it's reasonable to assume there will not be more than 999 events on a single day
+    return format("{}{:03}", date, largestIDnum);
+}
+
+
 bool Calendar::addEvent(const CalendarEvent& event) {
 
-    int id = event.getEventID();
+    string id = event.getEventID();
 
     // Don't allow duplicate IDs
     if (events.contains(id)) {
@@ -23,7 +73,7 @@ bool Calendar::addEvent(const CalendarEvent& event) {
     return true;
 }
 
-bool Calendar::removeEvent(int eventID) {
+bool Calendar::removeEvent(string eventID) {
 
     if (!events.contains(eventID)) {
         return false;
@@ -34,7 +84,7 @@ bool Calendar::removeEvent(int eventID) {
     return true;
 }
 
-CalendarEvent* Calendar::getEvent(int eventID) {
+CalendarEvent* Calendar::getEvent(string eventID) {
 
     auto it = events.find(eventID);
 
@@ -46,7 +96,7 @@ CalendarEvent* Calendar::getEvent(int eventID) {
 }
 
 
-bool Calendar::eventExists(int eventID) const {
+bool Calendar::eventExists(string eventID) const {
 
     return events.contains(eventID);
 }
