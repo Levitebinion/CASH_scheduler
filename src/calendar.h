@@ -15,7 +15,13 @@ private:
      std::string generateEventID(std::chrono::system_clock::time_point eventTime) const;
 public:
     // Add an event
-    bool addEvent(const CalendarEvent& event);
+    bool addEvent(
+        const std::string& description,
+        const std::string& location,
+        std::chrono::system_clock::time_point eventTime,
+        std::chrono::minutes getReadyOffset,
+        std::chrono::minutes leaveOffset
+    );
 
     // Remove an event
     bool removeEvent(std::string eventID);

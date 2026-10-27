@@ -101,4 +101,37 @@ public:
         return (eventTime - offset);
     }
 	
+	//print all info on the event
+	void printDetails() const {
+	std::cout << "Event ID: " << eventID << '\n';
+	std::cout << "Description: " << description << '\n';
+	std::cout << "Location: " << location << '\n';
+
+	auto printTime = [](const char* label,
+	std::chrono::system_clock::time_point time) {
+
+		std::time_t timeT =
+			std::chrono::system_clock::to_time_t(time);
+
+		std::tm localTime{};
+
+		// Convert to local time
+		localtime_s(&localTime, &timeT);
+
+		//print time with am or pm
+		std::cout << label
+			<< std::put_time(&localTime, "%b %d, %Y %I:%M %p")
+			<< '\n';
+	};
+
+	printTime("Event time: ", eventTime);
+	printTime("Get ready time: ", getReadyTime);
+	printTime("Leave time: ", leaveTime);
+
+	std::cout << "Get ready offset: "
+		<< getReadyOffset.count() << " minutes\n";
+
+	std::cout << "Leave offset: "
+		<< leaveOffset.count() << " minutes\n\n";
+	}
 };

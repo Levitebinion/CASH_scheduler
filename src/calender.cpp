@@ -9,6 +9,18 @@
 using namespace std;
 using namespace std::chrono;
 
+void Calendar::printEvents() const {
+    if (events.empty()) {
+        std::cout << "No events in the calendar.\n";
+        return;
+    }
+
+    for (const auto& [id, event] : events) {
+        std::cout << "Event Details:\n";
+        event.printDetails();
+    }
+    std::cout << "\n";
+}
 
 string Calendar::generateEventID(system_clock::time_point eventTime) const {
     const auto timeT = system_clock::to_time_t(eventTime); //convert timepoint to time_t to get year,month,date out
@@ -59,18 +71,28 @@ string Calendar::generateEventID(system_clock::time_point eventTime) const {
 }
 
 
-bool Calendar::addEvent(const CalendarEvent& event) {
+bool Calendar::addEvent(
+    const std::string& description,
+    const std::string& location,
+    std::chrono::system_clock::time_point eventTime,
+    std::chrono::minutes getReadyOffset,
+    std::chrono::minutes leaveOffset
+) {
+    // Generate a unique ID for this event
+    std::string id = generateEventID(eventTime);
 
-    string id = event.getEventID();
+    // Construct the event directly inside the map
+    auto [it, inserted] = events.try_emplace(
+        id,
+        id,
+        description,
+        location,
+        eventTime,
+        getReadyOffset,
+        leaveOffset
+    );
 
-    // Don't allow duplicate IDs
-    if (events.contains(id)) {
-        return false;
-    }
-
-    events.emplace(id, event);
-
-    return true;
+    return inserted;
 }
 
 bool Calendar::removeEvent(string eventID) {
@@ -111,59 +133,15 @@ int Calendar::getEventCount() const {
 void Calendar::printEvents() const {
 
     if (events.empty()) {
-
-        cout << "No events scheduled.\n";
-
+        std::cout << "No events scheduled.\n";
         return;
     }
 
     for (const auto& [id, event] : events) {
-
-        time_t eventTime =
-            system_clock::to_time_t(event.getTime());
-
-        tm* localTime =
-            std::localtime(&eventTime);
-
-        cout << "----------------------------\n";
-
-        cout << "Event ID: "
-             << event.getEventID()
-             << "\n";
-
-        cout << "Description: "
-             << event.getDescription()
-             << "\n";
-
-        cout << "Location: "
-             << event.getLocation()
-             << "\n";
-
-        cout << format(
-            "Date: {}/{}/{}\n",
-            localTime->tm_mon + 1,
-            localTime->tm_mday,
-            localTime->tm_year + 1900
-        );
-
-        int hour =
-            localTime->tm_hour % 12;
-
-        if (hour == 0)
-            hour = 12;
-
-        string amPm =
-            localTime->tm_hour >= 12
-            ? "PM"
-            : "AM";
-
-        cout << format(
-            "Time: {}:{:02} {}\n",
-            hour,
-            localTime->tm_min,
-            amPm
-        );
+    std::cout << "Event Details:\n";
+    event.printDetails();
     }
+    std::cout << "\n";
   }
 
   void Calendar::printCalendar(
