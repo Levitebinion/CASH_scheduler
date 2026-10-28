@@ -16,7 +16,7 @@
 #include <QLineEdit>
 #include <QFormLayout>
 #include <QDialogButtonBox>
-#include "calendar.h"
+#include "../src/calendar.h"
 #include <chrono>
 
 // Global or tracked state for current view
@@ -102,16 +102,14 @@ void updateCalendarGrid(QGridLayout *grid, QLabel *monthLabel, QLabel *selectedL
                     std::chrono::duration_cast<std::chrono::system_clock::duration>(
                         std::chrono::sys_days{eventDate}.time_since_epoch())
                 };
-                CalendarEvent newEvent(
-                    eventId,
+                
+                bool success = calendar->addEvent(
                     eventTitle.toStdString(),
-                    "",
+                    "Default Location",
                     eventTime,
-                    std::chrono::minutes{0},
-                    std::chrono::minutes{0});
-
-                // ---> HERE IS WHERE YOU USE YOUR FUNCTION <---
-                bool success = calendar->addEvent(newEvent);
+                    std::chrono::minutes(30), // Default get ready offset
+                    std::chrono::minutes(15)  // Default leave offset
+                );
 
                 if (success) {
                     qDebug() << "Event successfully added to backend!";

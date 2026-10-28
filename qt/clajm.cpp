@@ -22,7 +22,7 @@
 #include <QFormLayout>
 #include <QTimer>
 
-#include "calendar.h"
+#include "../src/calendar.h"
 #include <chrono>
 
 QDate currentDisplayDate = QDate::currentDate();
@@ -416,7 +416,7 @@ int main(int argc, char *argv[]) {
 
             QString eventInfo =
                 "Event ID: " +
-                QString::number(event->getEventID()) +
+                QString::fromStdString(event->getEventID()) +
 
                 "\n\nTitle: " +
                 QString::fromStdString(

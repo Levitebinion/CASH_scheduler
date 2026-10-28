@@ -1,6 +1,8 @@
 #pragma once
 #include <string>
 #include <chrono>
+#include <iostream>
+#include <iomanip>
 
 class CalendarEvent {
 private:
@@ -31,6 +33,25 @@ public:
 		leaveOffset(leaveOffset),
 		getReadyTime(alarmTime(eventTime, getReadyOffset)),
 		leaveTime(alarmTime(eventTime, leaveOffset))
+	{
+	}
+
+	CalendarEvent(
+		int eventID,
+		const std::string& description,
+		const std::string& location,
+		std::chrono::system_clock::time_point eventTime,
+		std::chrono::minutes getReadyOffset,
+		std::chrono::minutes leaveOffset
+	)
+		: CalendarEvent(
+			std::to_string(eventID),
+			description,
+			location,
+			eventTime,
+			getReadyOffset,
+			leaveOffset
+		)
 	{
 	}
 

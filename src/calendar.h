@@ -12,7 +12,7 @@ private:
     std::map<std::string, CalendarEvent> events;
 
     //private because only adding events should be using it, creates the event's id
-     std::string generateEventID(std::chrono::system_clock::time_point eventTime) const;
+    std::string generateEventID(std::chrono::system_clock::time_point eventTime) const;
 public:
     // Add an event
     bool addEvent(
@@ -23,14 +23,21 @@ public:
         std::chrono::minutes leaveOffset
     );
 
+    bool addEvent(const CalendarEvent& event);
+
     // Remove an event
     bool removeEvent(std::string eventID);
+    bool removeEvent(int eventID);
 
     // Find an event
     CalendarEvent* getEvent(std::string eventID);
+    CalendarEvent* getEvent(int eventID);
+    const CalendarEvent* getEvent(std::string eventID) const;
+    const CalendarEvent* getEvent(int eventID) const;
 
     // Check if event exists
     bool eventExists(std::string eventID) const;
+    bool eventExists(int eventID) const;
 
     // Print all events on console terminal
     void printEvents() const;

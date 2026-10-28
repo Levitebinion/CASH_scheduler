@@ -28,7 +28,7 @@ string Calendar::generateEventID(system_clock::time_point eventTime) const {
 
     //this checks what time conversion to use, windows or linux/mac
     //read some stuff that says it should be here so it is
-    #if defined(_MSC_VER)
+    #if defined(_WIN32)
         localtime_s(&localTime, &timeT);
     #else
         localtime_r(&timeT, &localTime);
@@ -95,6 +95,10 @@ bool Calendar::addEvent(
     return inserted;
 }
 
+bool Calendar::addEvent(const CalendarEvent& event) {
+    return events.try_emplace(event.getEventID(), event).second;
+}
+
 bool Calendar::removeEvent(string eventID) {
 
     if (!events.contains(eventID)) {
@@ -104,6 +108,10 @@ bool Calendar::removeEvent(string eventID) {
     events.erase(eventID);
 
     return true;
+}
+
+bool Calendar::removeEvent(int eventID) {
+    return removeEvent(std::to_string(eventID));
 }
 
 CalendarEvent* Calendar::getEvent(string eventID) {
@@ -117,10 +125,31 @@ CalendarEvent* Calendar::getEvent(string eventID) {
     return &it->second;
 }
 
+CalendarEvent* Calendar::getEvent(int eventID) {
+    return getEvent(std::to_string(eventID));
+}
+
+const CalendarEvent* Calendar::getEvent(string eventID) const {
+    auto it = events.find(eventID);
+
+    if (it == events.end()) {
+        return nullptr;
+    }
+
+    return &it->second;
+}
+
+const CalendarEvent* Calendar::getEvent(int eventID) const {
+    return getEvent(std::to_string(eventID));
+}
 
 bool Calendar::eventExists(string eventID) const {
 
     return events.contains(eventID);
+}
+
+bool Calendar::eventExists(int eventID) const {
+    return eventExists(std::to_string(eventID));
 }
 
 int Calendar::getEventCount() const {
@@ -130,21 +159,7 @@ int Calendar::getEventCount() const {
     );
 }
 
-void Calendar::printEvents() const {
-
-    if (events.empty()) {
-        std::cout << "No events scheduled.\n";
-        return;
-    }
-
-    for (const auto& [id, event] : events) {
-    std::cout << "Event Details:\n";
-    event.printDetails();
-    }
-    std::cout << "\n";
-  }
-
-  void Calendar::printCalendar(
+void Calendar::printCalendar(
     std::chrono::year y,
     std::chrono::month m
 ) const {

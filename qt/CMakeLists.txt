@@ -11,7 +11,7 @@ set(CMAKE_AUTOUIC ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
 add_executable(QtVSCodeApp 
-    main.cpp
+    clajm.cpp
     ../src/calendar.h
     ../src/calender.cpp
     ../src/eventClass.h
