@@ -23,6 +23,7 @@ public:
         std::chrono::minutes leaveOffset
     );
 
+    
     bool addEvent(const CalendarEvent& event);
 
     // Remove an event
@@ -52,4 +53,8 @@ public:
 
     // Print current month in a calendar format on console terminal
     void showCurrentMonth() const;
+
+    // Save and load calendar events
+    bool saveEvents() const;
+    bool loadEvents();
 };

@@ -5,22 +5,11 @@
 #include <chrono>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+#include "json.hpp"
 
 using namespace std;
 using namespace std::chrono;
-
-void Calendar::printEvents() const {
-    if (events.empty()) {
-        std::cout << "No events in the calendar.\n";
-        return;
-    }
-
-    for (const auto& [id, event] : events) {
-        std::cout << "Event Details:\n";
-        event.printDetails();
-    }
-    std::cout << "\n";
-}
 
 string Calendar::generateEventID(system_clock::time_point eventTime) const {
     const auto timeT = system_clock::to_time_t(eventTime); //convert timepoint to time_t to get year,month,date out
@@ -159,7 +148,21 @@ int Calendar::getEventCount() const {
     );
 }
 
-void Calendar::printCalendar(
+void Calendar::printEvents() const {
+
+    if (events.empty()) {
+        std::cout << "No events scheduled.\n";
+        return;
+    }
+
+    for (const auto& [id, event] : events) {
+    std::cout << "Event Details:\n";
+    event.printDetails();
+    }
+    std::cout << "\n";
+  }
+
+  void Calendar::printCalendar(
     std::chrono::year y,
     std::chrono::month m
 ) const {
@@ -339,4 +342,110 @@ void Calendar::printCalendar(
         currentYear,
         currentMonth
     );
+}
+
+bool Calendar::saveEvents() const {
+
+    nlohmann::json j;
+    j["events"] = nlohmann::json::array();
+
+    for (const auto& [id, event] : events) {
+
+        // Convert event time into milliseconds
+        auto timestamp = std::chrono::duration_cast<
+            std::chrono::milliseconds
+        >(event.getTime().time_since_epoch()).count();
+
+        j["events"].push_back({
+            {"eventID", event.getEventID()},
+            {"description", event.getDescription()},
+            {"location", event.getLocation()},
+            {"eventTime", timestamp},
+            {"getReadyOffset", event.getReadyOff().count()},
+            {"leaveOffset", event.getLeaveOffset().count()}
+            });
+    }
+
+    std::ofstream file("events.json");
+
+    if (!file.is_open()) {
+        return false;
+    }
+
+    file << j.dump(4);
+
+    return file.good();
+}
+
+
+bool Calendar::loadEvents() {
+
+    std::ifstream file("events.json");
+
+    if (!file.is_open()) {
+        return false;
+    }
+
+    try {
+
+        nlohmann::json j;
+        file >> j;
+
+        if (!j.contains("events") || !j["events"].is_array()) {
+            return false;
+        }
+
+        // Temporary map in case loading fails
+        std::map<std::string, CalendarEvent> loadedEvents;
+
+        for (const auto& event : j["events"]) {
+
+            std::string id = event.at("eventID").get<std::string>();
+
+            std::string description =
+                event.at("description").get<std::string>();
+
+            std::string location =
+                event.at("location").get<std::string>();
+
+            // Convert milliseconds back into a time_point
+            auto timestamp = std::chrono::milliseconds(
+                event.at("eventTime").get<long long>()
+            );
+
+            std::chrono::system_clock::time_point eventTime{
+                std::chrono::duration_cast<
+                    std::chrono::system_clock::duration
+                >(timestamp)
+            };
+
+            // Convert stored values back into minutes
+            std::chrono::minutes getReadyOffset(
+                event.at("getReadyOffset").get<long long>()
+            );
+
+            std::chrono::minutes leaveOffset(
+                event.at("leaveOffset").get<long long>()
+            );
+
+            // Reconstruct CalendarEvent using your constructor
+            loadedEvents.try_emplace(
+                id,
+                id,
+                description,
+                location,
+                eventTime,
+                getReadyOffset,
+                leaveOffset
+            );
+        }
+
+        // Replace current map with loaded events
+        events = std::move(loadedEvents);
+
+        return true;
+    }
+    catch (const nlohmann::json::exception&) {
+        return false;
+    }
 }

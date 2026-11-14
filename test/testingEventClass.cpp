@@ -4,11 +4,12 @@
 #include <string>
 #include "eventClass.h"
 #include "Calendar.h"
+
 using namespace std;
 
 int main()
 {
-    //test get and set on single event
+    //getting and setting on single event
     CalendarEvent event("1", "Awesome Party", "My Cool Friend's House", std::chrono::system_clock::now() + std::chrono::hours(48), std::chrono::minutes(30), std::chrono::minutes(20));
     event.printDetails();
 
@@ -20,8 +21,17 @@ int main()
 
     event.printDetails();
 
+
     //adding events to calendar map with new ids
     Calendar calendar;
+
+    //is there a existing json to load
+    if (calendar.loadEvents()) {
+        std::cout << "Calendar loaded successfully!\n";
+    }
+    else {
+        std::cout << "Starting with an empty calendar.\n";
+    }
 
     auto now = std::chrono::system_clock::now();
 
@@ -43,6 +53,6 @@ int main()
 
     calendar.printEvents();
 
-
+    calendar.saveEvents();
     return 0;
 }
