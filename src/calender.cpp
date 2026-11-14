@@ -351,11 +351,12 @@ bool Calendar::saveEvents() const {
 
     for (const auto& [id, event] : events) {
 
-        // Convert event time into milliseconds
+        // Convert event time into milliseconds, because apparently time points are hard to save
         auto timestamp = std::chrono::duration_cast<
             std::chrono::milliseconds
         >(event.getTime().time_since_epoch()).count();
 
+        //don't need to get the reminder times because those can be recalculated from the offsets and event time
         j["events"].push_back({
             {"eventID", event.getEventID()},
             {"description", event.getDescription()},
@@ -366,12 +367,14 @@ bool Calendar::saveEvents() const {
             });
     }
 
+    //make or open file
     std::ofstream file("events.json");
 
     if (!file.is_open()) {
         return false;
     }
 
+    //spacing
     file << j.dump(4);
 
     return file.good();
@@ -380,6 +383,7 @@ bool Calendar::saveEvents() const {
 
 bool Calendar::loadEvents() {
 
+    //open event file if it exists
     std::ifstream file("events.json");
 
     if (!file.is_open()) {
@@ -391,6 +395,7 @@ bool Calendar::loadEvents() {
         nlohmann::json j;
         file >> j;
 
+        //some way to check if the event file has valid info, may need more checks?
         if (!j.contains("events") || !j["events"].is_array()) {
             return false;
         }
@@ -408,7 +413,7 @@ bool Calendar::loadEvents() {
             std::string location =
                 event.at("location").get<std::string>();
 
-            // Convert milliseconds back into a time_point
+            // Convert milliseconds back into a time_point for leave/getready time math
             auto timestamp = std::chrono::milliseconds(
                 event.at("eventTime").get<long long>()
             );
@@ -428,7 +433,7 @@ bool Calendar::loadEvents() {
                 event.at("leaveOffset").get<long long>()
             );
 
-            // Reconstruct CalendarEvent using your constructor
+            // Reconstruct CalendarEvent
             loadedEvents.try_emplace(
                 id,
                 id,
