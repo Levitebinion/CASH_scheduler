@@ -78,7 +78,8 @@ bool Calendar::addEvent(
         location,
         eventTime,
         getReadyOffset,
-        leaveOffset
+        leaveOffset,
+        true
     );
 
     return inserted;
@@ -146,6 +147,31 @@ int Calendar::getEventCount() const {
     return static_cast<int>(
         events.size()
     );
+}
+
+void Calendar::checkNotifications() {
+    bool notificationTriggered = false;
+
+    for (auto& [id, event] : events) {
+        if (event.shouldNotifyReady()) {
+            std::cout << "\nTime to get ready for "
+                      << event.getDescription() << "!\n";
+            notificationTriggered = true;
+        }
+
+        if (event.shouldNotifyLeaving()) {
+            std::cout << "\nTime to leave for "
+                      << event.getDescription() << "!\n";
+            notificationTriggered = true;
+        }
+    }
+
+    // Save only if at least one notification was triggered
+    if (notificationTriggered) {
+        if (!saveEvents()) {
+            std::cerr << "Failed to save notification states.\n";
+        }
+    }
 }
 
 void Calendar::printEvents() const {
@@ -363,8 +389,11 @@ bool Calendar::saveEvents() const {
             {"location", event.getLocation()},
             {"eventTime", timestamp},
             {"getReadyOffset", event.getReadyOff().count()},
-            {"leaveOffset", event.getLeaveOffset().count()}
-            });
+            {"leaveOffset", event.getLeaveOffset().count()},
+            {"notificationsEnabled", event.getNotificationsEnabled()},
+            {"readyNotificationSent", event.getReadyNotificationSent()},
+            {"leavingNotificationSent", event.getLeavingNotificationSent()}
+        });
     }
 
     //make or open file
@@ -413,6 +442,15 @@ bool Calendar::loadEvents() {
             std::string location =
                 event.at("location").get<std::string>();
 
+            bool notificationsEnabled =
+                event.value("notificationsEnabled", true);
+
+            bool readySent =
+                event.value("readyNotificationSent", false);
+
+            bool leavingSent =
+                event.value("leavingNotificationSent", false);
+
             // Convert milliseconds back into a time_point for leave/getready time math
             auto timestamp = std::chrono::milliseconds(
                 event.at("eventTime").get<long long>()
@@ -434,15 +472,23 @@ bool Calendar::loadEvents() {
             );
 
             // Reconstruct CalendarEvent
-            loadedEvents.try_emplace(
-                id,
-                id,
-                description,
-                location,
-                eventTime,
-                getReadyOffset,
-                leaveOffset
-            );
+            auto [it, inserted] = loadedEvents.try_emplace(
+                  id,
+                  id,
+                  description,
+                  location,
+                  eventTime,
+                  getReadyOffset,
+                  leaveOffset,
+                  notificationsEnabled
+              );
+
+            if (!inserted) {
+              return false; // Duplicate event ID in JSON
+            }
+
+            // Restore notification delivery states
+            it->second.restoreDeliveryFlags(readySent, leavingSent);
         }
 
         // Replace current map with loaded events

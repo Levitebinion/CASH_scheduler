@@ -3,6 +3,8 @@
 #include <chrono>
 #include <iostream>
 #include <iomanip>
+#include <ctime>
+#include "Notification.h"
 
 class CalendarEvent {
 private:
@@ -12,9 +14,7 @@ private:
 	std::chrono::system_clock::time_point eventTime; // what time is the event
 	std::chrono::minutes getReadyOffset; //when is it time to get ready ex: 30 minutes before event time
 	std::chrono::minutes leaveOffset; // when is it time to leave ex: 10 minutes before event time
-    std::chrono::system_clock::time_point getReadyTime;
-    std::chrono::system_clock::time_point leaveTime;
-
+  Notification notice;
 public:
 	// constructor
 	CalendarEvent(
@@ -23,7 +23,8 @@ public:
 		const std::string& location,
 		std::chrono::system_clock::time_point eventTime,
 		std::chrono::minutes getReadyOffset,
-		std::chrono::minutes leaveOffset
+		std::chrono::minutes leaveOffset,
+    bool noticeOnOff
 	)
 		: eventID(eventID),
 		description(description),
@@ -31,29 +32,30 @@ public:
 		eventTime(eventTime),
 		getReadyOffset(getReadyOffset),
 		leaveOffset(leaveOffset),
-		getReadyTime(alarmTime(eventTime, getReadyOffset)),
-		leaveTime(alarmTime(eventTime, leaveOffset))
+    notice(noticeOnOff, eventID, getReadyOffset, leaveOffset)
 	{
 	}
 
-	CalendarEvent(
-		int eventID,
-		const std::string& description,
-		const std::string& location,
-		std::chrono::system_clock::time_point eventTime,
-		std::chrono::minutes getReadyOffset,
-		std::chrono::minutes leaveOffset
-	)
-		: CalendarEvent(
-			std::to_string(eventID),
-			description,
-			location,
-			eventTime,
-			getReadyOffset,
-			leaveOffset
-		)
-	{
-	}
+CalendarEvent(
+    int eventID,
+    const std::string& description,
+    const std::string& location,
+    std::chrono::system_clock::time_point eventTime,
+    std::chrono::minutes getReadyOffset,
+    std::chrono::minutes leaveOffset,
+    bool noticeOnOff
+)
+    : CalendarEvent(
+        std::to_string(eventID),
+        description,
+        location,
+        eventTime,
+        getReadyOffset,
+        leaveOffset,
+        noticeOnOff
+    )
+{
+}
 
 	// getters/setters
 	std::string getEventID() const {
@@ -76,11 +78,34 @@ public:
 		return location;
 	}
 
+  // Enables or disables the notifications
+  void setNotificationsEnabled(bool enabled) {
+      notice.setStatus(enabled);
+  }
+
+  // Checks the notification onOff status
+  bool getNotificationsEnabled() const {
+      return notice.getStatus();
+  }
+
+  // Calculates and GETS the Ready time
+  std::chrono::system_clock::time_point
+  getReadyNotificationTime() const {
+      return notice.getNotificationTimeForReady(eventTime);
+  }
+
+  // Calculates and GETS the Leaving Time
+  std::chrono::system_clock::time_point
+  getLeavingNotificationTime() const {
+      return notice.getNotificationTimeForLeaving(eventTime);
+  }
+
 	//changing the event time will update the get ready and leave times
 	void setEventTime(std::chrono::system_clock::time_point newTime) {
-		eventTime = newTime;
-		getReadyTime = alarmTime(eventTime, getReadyOffset);
-		leaveTime = alarmTime(eventTime, leaveOffset);
+		if (eventTime != newTime) {
+        eventTime = newTime;
+        notice.resetNotifications();
+    }
 	}
 
 	std::chrono::system_clock::time_point getTime() const {
@@ -89,8 +114,10 @@ public:
 
 	//changing the getting ready time offset will update the get ready time
 	void setReadyOffset(std::chrono::minutes newReadyOff) {
-		getReadyOffset = newReadyOff;
-		getReadyTime = alarmTime(eventTime, getReadyOffset);
+		if (getReadyOffset != newReadyOff) {
+        getReadyOffset = newReadyOff;
+        notice.updateTimeReady(newReadyOff);
+    }
 	}
 
 	std::chrono::minutes getReadyOff() const {
@@ -99,29 +126,42 @@ public:
 
 	//changing the leave time offset will update the leave time
 	void setLeaveOffset(std::chrono::minutes newLeaveOff) {
-		leaveOffset = newLeaveOff;
-		leaveTime = alarmTime(eventTime, leaveOffset);
+		if (leaveOffset != newLeaveOff) {
+        leaveOffset = newLeaveOff;
+        notice.updateTimeLeaving(newLeaveOff);
+    }
 	}
 
 	std::chrono::minutes getLeaveOffset() const {
 		return leaveOffset;
 	}
-    
-    //GET THE READY TIME
-	std::chrono::system_clock::time_point giveReadyTime() const {
-		return getReadyTime;
-	}
 
-    //GET THE LEAVE TIME
-	std::chrono::system_clock::time_point giveLeaveTime() const {
-		return leaveTime;
-	}
-	
-	// function to determine when to get ready and when to leave
-    std::chrono::system_clock::time_point alarmTime(std::chrono::system_clock::time_point eventTime, std::chrono::minutes offset){
-        return (eventTime - offset);
-    }
-	
+  // Checks if the ready notification had been set
+  bool getReadyNotificationSent() const {
+      return notice.wasReadyNotificationSent();
+  }
+
+  // Checks if the leaving notification had been set
+  bool getLeavingNotificationSent() const {
+      return notice.wasLeavingNotificationSent();
+  }
+
+  // For json file to save and recover if the notification had been set
+  void restoreDeliveryFlags(bool readySent, bool leavingSent) {
+      notice.restoreDeliveryFlags(readySent, leavingSent);
+  }
+
+  // Checks if the ready notification is on time set by the offset
+  bool shouldNotifyReady() {
+    return notice.shouldNotifyReady(eventTime);
+  }
+
+  // Checks if the leaving notification is on time set by the offset
+  bool shouldNotifyLeaving() {
+      return notice.shouldNotifyLeaving(eventTime);
+  }
+
+
 	//print all info on the event
 	void printDetails() const {
 	std::cout << "Event ID: " << eventID << '\n';
@@ -137,7 +177,11 @@ public:
 		std::tm localTime{};
 
 		// Convert to local time
-		localtime_s(&localTime, &timeT);
+#if defined(_WIN32)
+    localtime_s(&localTime, &timeT);
+#else
+    localtime_r(&timeT, &localTime);
+#endif
 
 		//print time with am or pm
 		std::cout << label
@@ -146,8 +190,8 @@ public:
 	};
 
 	printTime("Event time: ", eventTime);
-	printTime("Get ready time: ", getReadyTime);
-	printTime("Leave time: ", leaveTime);
+  printTime("Get ready time: ", getReadyNotificationTime());
+  printTime("Leave time: ", getLeavingNotificationTime());
 
 	std::cout << "Get ready offset: "
 		<< getReadyOffset.count() << " minutes\n";

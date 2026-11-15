@@ -23,7 +23,7 @@ public:
         std::chrono::minutes leaveOffset
     );
 
-    
+
     bool addEvent(const CalendarEvent& event);
 
     // Remove an event
@@ -57,4 +57,7 @@ public:
     // Save and load calendar events
     bool saveEvents() const;
     bool loadEvents();
+
+    // Check event notifications
+    void checkNotifications();
 };
