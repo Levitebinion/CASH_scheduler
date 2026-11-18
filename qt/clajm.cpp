@@ -21,11 +21,35 @@
 #include <QInputDialog>
 #include <QFormLayout>
 #include <QTimer>
+#include <QComboBox>
+#include <QSystemTrayIcon>
+#include <QStyle>
+#include <QTime>
+#include <QSet>
+#include <QMap>
 
 #include "../src/calendar.h"
 #include <chrono>
 
 QDate currentDisplayDate = QDate::currentDate();
+
+// reminder settings are stored by event id for this app session
+QMap<int, int> reminderMinutes;
+QSet<QString> deliveredReminders;
+
+QComboBox *makeReminderChoice(QWidget *parent, int selected = 0) {
+    auto *choice = new QComboBox(parent);
+    choice->addItem("No reminder", 0);
+    choice->addItem("5 minutes before", 5);
+    choice->addItem("10 minutes before", 10);
+    choice->addItem("15 minutes before", 15);
+    choice->addItem("30 minutes before", 30);
+    choice->addItem("1 hour before", 60);
+    int index = choice->findData(selected);
+    choice->setCurrentIndex(index < 0 ? 0 : index);
+    return choice;
+}
+
 
 QDateTime toQtDateTime(std::chrono::system_clock::time_point time) {
     auto milliseconds =
@@ -99,14 +123,32 @@ void updateCalendarGrid(
         QPushButton *dayBtn =
             new QPushButton(QString::number(dayNumber));
 
-        dayBtn->setMinimumSize(40, 40);
+        dayBtn->setMinimumSize(40, 48);
+
+        // A star marks dates with events; past dates use a gray star.
+        const QDate buttonDate(currentDisplayDate.year(), currentDisplayDate.month(), dayNumber);
+        bool hasEvent = false;
+        for (const auto &entry : calendar->getEvents()) {
+            if (toQtDateTime(entry.second.getTime()).date() == buttonDate) {
+                hasEvent = true;
+                break;
+            }
+        }
+        if (hasEvent) {
+            const bool past = buttonDate < QDate::currentDate();
+            dayBtn->setText(QString::number(dayNumber) + " ★");
+            dayBtn->setStyleSheet(past
+                ? "QPushButton { color: #888888; font-weight: bold; }"
+                : "QPushButton { color: #d69b00; font-weight: bold; }");
+            dayBtn->setToolTip(past ? "Past event(s)" : "Scheduled event(s)");
+        }
 
         int clickedDay = dayNumber;
 
         QObject::connect(
             dayBtn,
             &QPushButton::clicked,
-            [clickedDay, selectedLabel, window, calendar, eventCounter]() {
+            [clickedDay, selectedLabel, window, calendar, eventCounter, grid, monthLabel]() {
 
                 QDate clickedDate(
                     currentDisplayDate.year(),
@@ -146,6 +188,12 @@ void updateCalendarGrid(
                     "Enter Event Title..."
                 );
 
+                QDateTimeEdit *dateTimeInput = new QDateTimeEdit(&dialog);
+                dateTimeInput->setDisplayFormat("MM/dd/yyyy hh:mm AP");
+                dateTimeInput->setCalendarPopup(true);
+                dateTimeInput->setDateTime(QDateTime(clickedDate, QTime(9, 0)));
+                QComboBox *reminderInput = makeReminderChoice(&dialog);
+
                 QDialogButtonBox *buttonBox =
                     new QDialogButtonBox(
                         QDialogButtonBox::Save |
@@ -156,6 +204,10 @@ void updateCalendarGrid(
                 dialogLayout->addWidget(dateHeader);
                 dialogLayout->addWidget(idInput);
                 dialogLayout->addWidget(titleInput);
+                dialogLayout->addWidget(new QLabel("Event date and time:"));
+                dialogLayout->addWidget(dateTimeInput);
+                dialogLayout->addWidget(new QLabel("Notify me:"));
+                dialogLayout->addWidget(reminderInput);
                 dialogLayout->addWidget(buttonBox);
 
                 QObject::connect(
@@ -199,10 +251,7 @@ void updateCalendarGrid(
                         return;
                     }
 
-                    QDateTime selectedDateTime(
-                        clickedDate,
-                        QTime(0, 0)
-                    );
+                    QDateTime selectedDateTime = dateTimeInput->dateTime();
 
                     auto eventTime =
                         toChronoTime(selectedDateTime);
@@ -220,6 +269,7 @@ void updateCalendarGrid(
                         calendar->addEvent(newEvent);
 
                     if (success) {
+                        reminderMinutes[eventId] = reminderInput->currentData().toInt();
                         QMessageBox::information(
                             window,
                             "Event Added",
@@ -230,6 +280,10 @@ void updateCalendarGrid(
                             eventCounter,
                             calendar
                         );
+                        QTimer::singleShot(0, window, [=]() {
+                            updateCalendarGrid(grid, monthLabel, selectedLabel,
+                                               window, calendar, eventCounter);
+                        });
 
                         qDebug()
                             << "Event successfully added!";
@@ -549,6 +603,9 @@ int main(int argc, char *argv[]) {
                 )
             );
 
+            QComboBox *reminderInput = makeReminderChoice(
+                &dialog, reminderMinutes.value(eventID, 0));
+
             QDialogButtonBox *buttonBox =
                 new QDialogButtonBox(
                     QDialogButtonBox::Save |
@@ -580,6 +637,7 @@ int main(int argc, char *argv[]) {
                 "Leave Offset:",
                 leaveInput
             );
+            formLayout->addRow("Notify me:", reminderInput);
 
             formLayout->addRow(buttonBox);
 
@@ -636,12 +694,22 @@ int main(int argc, char *argv[]) {
                     }
                 );
 
+                reminderMinutes[eventID] = reminderInput->currentData().toInt();
+                // allow a new reminder if the event time or reminder choice changed
+                for (auto it = deliveredReminders.begin(); it != deliveredReminders.end();) {
+                    if (it->startsWith(QString::number(eventID) + ":"))
+                        it = deliveredReminders.erase(it);
+                    else ++it;
+                }
+
                 QMessageBox::information(
                     &window,
                     "Event Updated",
                     "Event updated successfully!"
                 );
 
+                updateCalendarGrid(calendarGrid, monthLabel, selectedLabel,
+                                   &window, &calendar, eventCounter);
                 qDebug()
                     << "Event updated:"
                     << eventID;
@@ -705,6 +773,7 @@ int main(int argc, char *argv[]) {
                 calendar.removeEvent(eventID);
 
             if (success) {
+                reminderMinutes.remove(eventID);
                 QMessageBox::information(
                     &window,
                     "Event Deleted",
@@ -716,6 +785,8 @@ int main(int argc, char *argv[]) {
                     &calendar
                 );
 
+                updateCalendarGrid(calendarGrid, monthLabel, selectedLabel,
+                                   &window, &calendar, eventCounter);
                 qDebug()
                     << "Event deleted:"
                     << eventID;
@@ -779,6 +850,63 @@ int main(int argc, char *argv[]) {
         &calendar
     );
 
+    // Repaint stars when the calendar date rolls over at midnight.
+    auto *dateRefreshTimer = new QTimer(&window);
+    auto *lastCalendarDate = new QDate(QDate::currentDate());
+    QObject::connect(dateRefreshTimer, &QTimer::timeout, &window,
+        [=, &calendar]() {
+            if (*lastCalendarDate != QDate::currentDate()) {
+                *lastCalendarDate = QDate::currentDate();
+                updateCalendarGrid(calendarGrid, monthLabel, selectedLabel,
+                                   &window, &calendar, eventCounter);
+            }
+        });
+    QObject::connect(&window, &QObject::destroyed, [lastCalendarDate]() { delete lastCalendarDate; });
+    dateRefreshTimer->start(60000);
+
+    // Desktop notifications are delivered while the application is running.
+    QSystemTrayIcon tray(&window);
+    tray.setIcon(window.style()->standardIcon(QStyle::SP_ComputerIcon));
+    tray.setToolTip("CASH Scheduler reminders");
+    const bool trayAvailable = QSystemTrayIcon::isSystemTrayAvailable();
+    if (trayAvailable) tray.show();
+
+    QTimer reminderTimer(&window);
+    QObject::connect(&reminderTimer, &QTimer::timeout, &window, [&]() {
+        const QDateTime now = QDateTime::currentDateTime();
+        for (auto it = reminderMinutes.cbegin(); it != reminderMinutes.cend(); ++it) {
+            const int eventID = it.key();
+            const int minutes = it.value();
+            if (minutes <= 0) continue;
+            CalendarEvent *event = calendar.getEvent(eventID);
+            if (!event) continue;
+            const QDateTime eventTime = toQtDateTime(event->getTime());
+            const QDateTime reminderTime = eventTime.addSecs(-minutes * 60);
+            // Don't fire stale reminders for events that have already started.
+            if (now < reminderTime || now >= eventTime) continue;
+            const QString deliveryKey = QString::number(eventID) + ":" +
+                QString::number(eventTime.toMSecsSinceEpoch()) + ":" +
+                QString::number(minutes);
+            if (deliveredReminders.contains(deliveryKey)) continue;
+            deliveredReminders.insert(deliveryKey);
+            const QString title = QString::fromStdString(event->getDescription());
+            const QString message = title + " starts at " +
+                eventTime.toString("hh:mm AP") + " (in " +
+                QString::number(qMax(0LL, now.secsTo(eventTime) / 60)) + " minutes).";
+            // Play the system notification sound once per delivered reminder.
+            QApplication::beep();
+            if (trayAvailable) {
+                tray.showMessage("Upcoming event", message,
+                                 QSystemTrayIcon::Information, 10000);
+            } else {
+                auto *notice = new QMessageBox(QMessageBox::Information,
+                    "Upcoming event", message, QMessageBox::Ok, &window);
+                notice->setAttribute(Qt::WA_DeleteOnClose);
+                notice->show();
+            }
+        }
+    });
+    reminderTimer.start(15000);
     window.show();
 
     return app.exec();
