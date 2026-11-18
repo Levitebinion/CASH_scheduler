@@ -150,7 +150,8 @@ int main() {
                 location,
                 eventTime,
                 minutes{readyOffset},
-                minutes{leaveOffset}
+                minutes{leaveOffset},
+                true
             );
 
 
